@@ -1,5 +1,5 @@
 
-import { userSignup, userLogin } from '../controllers/userController'
+import { userSignup, userLogin ,userLogout,currentUserInfo} from '../controllers/userController'
 import express from 'express'
 import { body } from 'express-validator'
 
@@ -11,5 +11,7 @@ router.post('/register', [
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
 ], userSignup)
 router.post('/login', userLogin)
+router.post('/logout', userLogout)
+router.get('/me', currentUserInfo)
 
 export default router

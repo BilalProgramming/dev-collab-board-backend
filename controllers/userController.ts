@@ -1,10 +1,11 @@
 import userModel from "../models/User";
+import blackListModal from "../models/blackListToken";
 import expressAsyncHandler from "express-async-handler";
 import bcrypt from 'bcryptjs'
 import jwt from "jsonwebtoken";
 import { validationResult } from "express-validator";
 
-const scretKey=process.env.SECRETKEY
+const secretKey=process.env.SECRETKEY
 
 const userSignup=expressAsyncHandler(async(req,resp)=>{
    
@@ -13,10 +14,7 @@ const userSignup=expressAsyncHandler(async(req,resp)=>{
     return resp.status(422).json({ errors: errors.array() });
  try{
         const {name,email,password}=req?.body
-      /*   if(!name || !email || !password){
-            return resp.status(422).json({message:'All Fields are required'})
-             
-        } */
+      
         // check if email already exists
        const alreadyExists=await userModel.findOne({email})
        if(alreadyExists){
@@ -63,7 +61,7 @@ const userLogin=expressAsyncHandler(async(req,resp)=>{
             const user=findUser.toObject()
             delete user.password
             delete user.__v
-           const token=jwt.sign({user},scretKey,{expiresIn:'1d'})
+           const token=jwt.sign({user},secretKey,{expiresIn:'1d'})
          
               return resp.status(200).json({status:200,message:'Login successful',data:{token,user}})
 
@@ -75,5 +73,58 @@ const userLogin=expressAsyncHandler(async(req,resp)=>{
 
 })
 
+const userLogout=expressAsyncHandler(async(req,resp)=>{
+    try{
+        const token=req?.headers?.authorization?.split(' ')[1]
+        if(!token)
+        {
+            return resp.status(400).json({status:400,message:'Token is missing'})
+        }
+        const decoded=jwt.verify(token,secretKey)
+       
+        
+        const tokenIsBlackList=await blackListModal.findOne({token})
+        if (tokenIsBlackList) {
+    return resp.status(401).json({
+      status: 401,
+      message: "Already logged out",
+    });
+  }
 
-export {userSignup,userLogin}
+       const newData= new blackListModal({token, expiresAt: new Date(decoded.exp * 1000),})
+       await newData.save()
+         return resp.status(200).json({status:200,message:'Logout Successfullly'})
+
+    }catch(error){
+          return resp.status(400).json({status:400,message:'Unauthenticated.',error})
+
+    }
+})
+
+const currentUserInfo=expressAsyncHandler(async(req,resp)=>{
+    try{
+        const token=req?.headers.authorization?.split(' ')[1]
+          if(!token)
+        {
+            return resp.status(400).json({status:400,message:'Token is missing'})
+        }
+        const tokenIsBlackList=await blackListModal.findOne({token})
+          if (tokenIsBlackList) {
+    return resp.status(401).json({
+      status: 401,
+      message: "Token is invalid",
+    });
+  }
+        const decoded=jwt.verify(token,secretKey)
+        return resp.status(200).json({status:200,message:'authenticated user',data:decoded})
+
+
+    }catch(error){
+         return resp.status(400).json({status:400,message:'Unauthenticated.',error})
+
+    }
+
+})
+
+
+export {userSignup,userLogin,userLogout,currentUserInfo}
