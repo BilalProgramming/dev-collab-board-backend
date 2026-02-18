@@ -1,4 +1,4 @@
-import { createProject,getProjectList,showProject } from "../controllers/ProjectController";
+import { createProject,getProjectList,showProject,updateProject,deleteProject } from "../controllers/ProjectController";
 import express from 'express'
 import { body } from "express-validator";
 import { authMiddleware } from "../middleware/authMiddleware";
@@ -22,6 +22,8 @@ router.post('/projects', [
 ], authMiddleware, createProject)
 router.get('/projects',authMiddleware,getProjectList)
 router.get('/projects/:id',authMiddleware,showProject)
+router.put('/projects/:id',authMiddleware,updateProject)
+router.delete('/projects/:id',authMiddleware,deleteProject)
 
 
 export default router
