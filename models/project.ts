@@ -30,5 +30,5 @@ const projectSchema = new Schema<IProject>({
 },{ timestamps: true }
 )
 projectSchema.index({owner:1}) //add index tht make query faster
-const projectModel = mongoose.model('project', projectSchema)
+const projectModel = mongoose.model<IProject>('project', projectSchema,'project')
 export default projectModel

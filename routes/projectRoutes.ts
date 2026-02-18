@@ -1,4 +1,4 @@
-import { createProject,getProjectList,showProject,updateProject,deleteProject } from "../controllers/ProjectController";
+import { createProject,getProjectList,showProject,updateProject,deleteProject } from "../controllers/projectController";
 import express from 'express'
 import { body } from "express-validator";
 import { authMiddleware } from "../middleware/authMiddleware";
