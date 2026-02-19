@@ -4,7 +4,8 @@ export interface ITask {
     description: string,
     status:  "todo" | "in-progress" | "done"
     projectId: mongoose.Types.ObjectId,
-    createdBy: mongoose.Types.ObjectId
+    createdBy: mongoose.Types.ObjectId,
+    assignedTo:mongoose.Types.ObjectId
     
 
 
@@ -35,6 +36,11 @@ const taskSchema = new Schema<ITask>({
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         required:true
+    },
+    assignedTo:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'user',
+        default:null
     }
 
 
