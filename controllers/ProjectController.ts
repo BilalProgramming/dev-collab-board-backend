@@ -39,7 +39,7 @@ const getProjectList = expressAsyncHandler(async (req:AuthRequest, resp:Response
      try {
 
           const projects = await projectModel
-               .find()
+               .find({owner:req.user?._id})
                .skip(skip)
                .limit(per_page)
                .exec()
@@ -61,8 +61,9 @@ const showProject = expressAsyncHandler(async (req:AuthRequest, resp:Response) =
      try {
           const id = req.params?.id
           if (id) {
-               const projects = await projectModel.findById(id)
-               console.log('projects', projects);
+               const projects=await projectModel.findOne({_id:id,owner:req.user?._id})
+               // const projects = await projectModel.findById(id).where('owner').equals(req.user?._id)
+
                if (!projects) {
 
                      resp.status(404).json({
@@ -91,8 +92,8 @@ const showProject = expressAsyncHandler(async (req:AuthRequest, resp:Response) =
 const updateProject = expressAsyncHandler(async (req:AuthRequest, resp:Response) => {
      try {
           const projectId = req.params.id
-          const updatedProject = await projectModel.findByIdAndUpdate(
-               projectId,
+          const updatedProject = await projectModel.findOneAndUpdate(
+               { _id: projectId, owner: req.user?._id },
                { $set: req?.body },
                { new: true, runValidators: true }
           )
@@ -118,7 +119,8 @@ const deleteProject=expressAsyncHandler(async(req:AuthRequest,resp:Response)=>{
           msg: "Invalid project ID"
      });
 }
-          const deletedProject=await projectModel.findByIdAndDelete(id)
+          // const deletedProject=await projectModel.findByIdAndDelete(id)
+          const deletedProject=await projectModel.findOneAndDelete({_id:id,owner:req.user?._id})
           
 
           if(!deletedProject){
