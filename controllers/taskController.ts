@@ -1,4 +1,4 @@
-import { response } from "express";
+
 import taskModel from "../models/task";
 import expressAsyncHandler from "express-async-handler";
 import { validationResult } from "express-validator";
@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 import userModel from "../models/user";
 import { AuthRequest } from "../types/auth.types";
 import { Response } from "express";
+import projectModel from "../models/project";
 
 const createTask = expressAsyncHandler(async (req:AuthRequest, resp:Response) => {
     const errors = validationResult(req)
@@ -16,6 +17,13 @@ const createTask = expressAsyncHandler(async (req:AuthRequest, resp:Response) =>
     try {
         const userId = req.user?._id
         const { title, description, status, projectId } = req?.body
+        const findProject=await projectModel.findOne({_id:projectId,owner:userId})
+       
+        
+        if(!findProject){
+             resp.status(404).json({status:404,msg:'Project not found'})
+             return;
+        }
         const newTask = new taskModel({ title, description, status, projectId, createdBy: userId })
         await newTask.save()
 
@@ -40,7 +48,11 @@ const getTaskByProjectId = expressAsyncHandler(async (req:AuthRequest, resp:Resp
     }
 
     try {
-        const taskByProjectId = await taskModel.find({ projectId: id })
+        const taskByProjectId = await taskModel.find({ projectId: id,createdBy:req?.user?._id }).populate('assignedTo', 'name email')
+        if(taskByProjectId.length === 0) {
+             resp.status(404).json({ status: 404, msg: 'No Tasks found for this project' })
+             return;
+        }
 
          resp.status(200).json({ status: 200, msg: 'Tasks fetched successfully', data: taskByProjectId })
          return;
@@ -52,6 +64,7 @@ const getTaskByProjectId = expressAsyncHandler(async (req:AuthRequest, resp:Resp
     }
 })
 const updateTask = expressAsyncHandler(async (req:AuthRequest, resp:Response) => {
+    
     const id = req.params?.id as string
     if (!mongoose.Types.ObjectId.isValid(id)) {
          resp.status(400).json({
@@ -62,9 +75,14 @@ const updateTask = expressAsyncHandler(async (req:AuthRequest, resp:Response) =>
     }
 
     try {
-        const updatedTask = await taskModel.findByIdAndUpdate(
+        const updatedTask=await taskModel.findOneAndUpdate(
+            {_id:id,createdBy:req?.user?._id},
+            {$set:req?.body},
+            {new:true,runValidators:true}
+        )
+        /* const updatedTask = await taskModel.findByIdAndUpdate(
             id, { $set: req?.body },
-            { new: true, runValidators: true })
+            { new: true, runValidators: true }) */
         if (!updatedTask) {
         resp.status(404).json({ message: "Task not found" });
         return;
@@ -128,12 +146,6 @@ const assignTaskToUser=expressAsyncHandler(async(req:AuthRequest,resp:Response)=
         return
     }
     try{       
-      /* 
-        const findTask=await taskModel.findById(id)
-        
-         if(!findTask){
-            return resp.status(404).json({status:404,msg:'Task not found'})
-        } */
         const findUser=await userModel.findById(assignedTo)
         if(!findUser){
              resp.status(404).json({status:404,msg:'user not found'})
@@ -171,7 +183,7 @@ const deleteTask=expressAsyncHandler(async(req:AuthRequest,resp:Response)=>{
         return
     }
     try{
-        const deletedTask=await taskModel.findByIdAndDelete(id)
+        const deletedTask=await taskModel.findOneAndDelete({_id:id,createdBy:req?.user?._id})
             if(!deletedTask){
                 resp.status(404).json({status:404,msg:'Task not found',})
                 return
