@@ -3,7 +3,7 @@ import expressAsyncHandler from "express-async-handler";
 import { validationResult } from "express-validator";
 import { AuthRequest } from "../types/auth.types";
 import { Response } from "express";
-import { createProjectService } from "../Services/projectService";
+import { createProjectService, getProjectListService } from "../Services/projectService";
 import mongoose from "mongoose";
 
 const createProject = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
@@ -38,17 +38,21 @@ const createProject = expressAsyncHandler(async (req: AuthRequest, resp: Respons
 const getProjectList = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
      const current_page = Number(req.query.page) || 1
      const per_page = Number(req.query.per_page) || 10
-     const totalCount = await projectModel.countDocuments()
-     const totalPages = Math.ceil(totalCount / per_page);  // Total pages
-     const lastPage = Math.ceil(totalCount / per_page);
+
+
      const skip = (current_page - 1) * per_page
      try {
+          const userId = req?.user?._id
+          if (!userId) {
+               throw new Error("User not authenticated");
 
-          const projects = await projectModel
-               .find({ owner: req.user?._id })
-               .skip(skip)
-               .limit(per_page)
-               .exec()
+          }
+          const totalCount = await projectModel.countDocuments({ owner: userId })
+          const totalPages = Math.ceil(totalCount / per_page);  // Total pages
+          const lastPage = Math.ceil(totalCount / per_page);
+
+          const projects = await getProjectListService({ per_page, skip, id: userId })
+
           resp.status(200).json({
                status: 200, message: 'project list retrived successfully', data: projects, meta: {
                     totalCount,
