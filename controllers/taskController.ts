@@ -1,95 +1,119 @@
-import { response } from "express";
+
 import taskModel from "../models/task";
 import expressAsyncHandler from "express-async-handler";
 import { validationResult } from "express-validator";
 import mongoose from "mongoose";
-import userModel from "../models/User";
+import userModel from "../models/user";
+import { AuthRequest } from "../types/auth.types";
+import { Response } from "express";
+import projectModel from "../models/project";
 
-const createTask = expressAsyncHandler(async (req, resp) => {
+const createTask = expressAsyncHandler(async (req:AuthRequest, resp:Response) => {
     const errors = validationResult(req)
-    if (!errors.isEmpty())
-        return resp.status(422).json({ errors: errors.array() });
+    if (!errors.isEmpty()){
+         resp.status(422).json({ errors: errors.array() });
+        return;
+    }
     try {
         const userId = req.user?._id
-
-
-
         const { title, description, status, projectId } = req?.body
+        const findProject=await projectModel.findOne({_id:projectId,owner:userId})
+       
+        
+        if(!findProject){
+             resp.status(404).json({status:404,msg:'Project not found'})
+             return;
+        }
         const newTask = new taskModel({ title, description, status, projectId, createdBy: userId })
         await newTask.save()
 
-        return resp.status(200).json({ status: 200, msg: 'Task created succesfully', data: newTask })
-
-
-
+        resp.status(200).json({ status: 200, msg: 'Task created succesfully', data: newTask })
+        return;
     } catch (error) {
-          return resp.status(500).json({ status: 500, msg: 'Failed to create Task', errors: error })
+           resp.status(500).json({ status: 500, msg: 'Failed to create Task', errors: error })
+           return;
 
     }
 
 
 })
-const getTaskByProjectId = expressAsyncHandler(async (req, resp) => {
-    const id = req?.params.id
+const getTaskByProjectId = expressAsyncHandler(async (req:AuthRequest, resp:Response) => {
+    const id = req?.params.id as string
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        return resp.status(400).json({
+        resp.status(400).json({
             status: 400,
             msg: "Invalid project ID"
         });
+        return
     }
 
     try {
-        const taskByProjectId = await taskModel.find({ projectId: id })
+        const taskByProjectId = await taskModel.find({ projectId: id,createdBy:req?.user?._id }).populate('assignedTo', 'name email')
+        if(taskByProjectId.length === 0) {
+             resp.status(404).json({ status: 404, msg: 'No Tasks found for this project' })
+             return;
+        }
 
-        return resp.status(200).json({ status: 200, msg: 'Tasks fetched successfully', data: taskByProjectId })
+         resp.status(200).json({ status: 200, msg: 'Tasks fetched successfully', data: taskByProjectId })
+         return;
 
     } catch (error) {
-        return resp.status(500).json({ status: 500, msg: 'Failed to fetch Tasks', errors: error })
+         resp.status(500).json({ status: 500, msg: 'Failed to fetch Tasks', errors: error })
+         return;
 
     }
 })
-const updateTask = expressAsyncHandler(async (req, resp) => {
-    const id = req.params?.id
+const updateTask = expressAsyncHandler(async (req:AuthRequest, resp:Response) => {
+    
+    const id = req.params?.id as string
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        return resp.status(400).json({
+         resp.status(400).json({
             status: 400,
             msg: "Invalid project ID"
         });
+        return;
     }
 
     try {
-        const updatedTask = await taskModel.findByIdAndUpdate(
+        const updatedTask=await taskModel.findOneAndUpdate(
+            {_id:id,createdBy:req?.user?._id},
+            {$set:req?.body},
+            {new:true,runValidators:true}
+        )
+        /* const updatedTask = await taskModel.findByIdAndUpdate(
             id, { $set: req?.body },
-            { new: true, runValidators: true })
+            { new: true, runValidators: true }) */
         if (!updatedTask) {
-            return resp.status(404).json({ message: "Task not found" });
+        resp.status(404).json({ message: "Task not found" });
+        return;
 
         }
         resp.status(200).json({ status: 200, message: 'Task updated succesfully', data: updatedTask })
-
-
-
+        return;
     } catch (error) {
-         return resp.status(500).json({ status: 500, msg: 'Failed to update Task', errors: error })
+         resp.status(500).json({ status: 500, msg: 'Failed to update Task', errors: error })
+         return;
 
     }
 })
 
-const updateTaskStatus=expressAsyncHandler(async(req,resp)=>{
-      const id = req.params?.id
+const updateTaskStatus=expressAsyncHandler(async(req:AuthRequest,resp:Response)=>{
+      const id = req.params?.id as string
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        return resp.status(400).json({
+         resp.status(400).json({
             status: 400,
             msg: "Invalid project ID"
         });
+        return
     }
     try{ 
          const allowedStatuses = ["todo", "in-progress", "done"];
         const {status:taskStatus}=req?.body
   if (!allowedStatuses.includes(taskStatus)) {
-    return resp.status(400).json({
+    resp.status(400).json({
       message: "Invalid status value",
     });
+    return
   }
 
       const result=await taskModel.findOneAndUpdate(
@@ -98,76 +122,78 @@ const updateTaskStatus=expressAsyncHandler(async(req,resp)=>{
         {new:true}
       )
       if(!result){
-        return resp.status(403).json({status:403,msg:'Failed to update Project'})
+         resp.status(403).json({status:403,msg:'Failed to update Project'})
+            return;
 
       }
     
         resp.status(200).json({status:200,msg:'status updated successfully',data:result})
 
     }catch(error){
-        console.log(error);
         
       resp.status(500).json({status:500,msg:'Failed to update Stats',errors:error})
     }
 })
 
-const assignTaskToUser=expressAsyncHandler(async(req,resp)=>{
-     const id = req.params?.id
+const assignTaskToUser=expressAsyncHandler(async(req:AuthRequest,resp:Response)=>{
+     const id = req.params?.id as string
        const{assignedTo}=req?.body
     if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(assignedTo)) {
-        return resp.status(400).json({
+         resp.status(400).json({
             status: 400,
             msg: "Invalid  ID"
         });
+        return
     }
     try{       
-      /* 
-        const findTask=await taskModel.findById(id)
-        
-         if(!findTask){
-            return resp.status(404).json({status:404,msg:'Task not found'})
-        } */
         const findUser=await userModel.findById(assignedTo)
         if(!findUser){
-            return resp.status(404).json({status:404,msg:'user not found'})
+             resp.status(404).json({status:404,msg:'user not found'})
+             return;
         }
       
         
         const assignToUser=await taskModel.findOneAndUpdate(
-            {_id:id,createdBy:req?.user._id},
+            {_id:id,createdBy:req?.user?._id},
             {assignedTo},
             {new:true}
         )
         if(!assignToUser){
-               return resp.status(403).json({status:403,msg:'Forbidden',})
+                resp.status(403).json({status:403,msg:'Forbidden',})
+                return
 
         }
-        return resp.status(200).json({status:200,msg:'Task assign succesfully',data:assignToUser})
+        resp.status(200).json({status:200,msg:'Task assign succesfully',data:assignToUser})
+        return;
 
 
     }catch(error){
-          return resp.status(500).json({status:500,msg:'Failed To assign',errors:error})
+           resp.status(500).json({status:500,msg:'Failed To assign',errors:error})
 
     }
 })
 
-const deleteTask=expressAsyncHandler(async(req,resp)=>{
-    const id=req.params?.id
+const deleteTask=expressAsyncHandler(async(req:AuthRequest,resp:Response)=>{
+    const id=req.params?.id as string
      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return resp.status(400).json({
+         resp.status(400).json({
             status: 400,
             msg: "Invalid project ID"
         });
+        return
     }
     try{
-        const deletedTask=await taskModel.findByIdAndDelete(id)
+        const deletedTask=await taskModel.findOneAndDelete({_id:id,createdBy:req?.user?._id})
             if(!deletedTask){
-               return resp.status(404).json({status:404,msg:'Task not found',})
+                resp.status(404).json({status:404,msg:'Task not found',})
+                return
           }
-          return resp.status(200).json({status:200,msg:'Task deleted successfully', data:deletedTask})
+           resp.status(200).json({status:200,msg:'Task deleted successfully', data:deletedTask})
+           return
 
     }catch(error){
-         return resp.status(500).json({status:500,msg:'Error While Deleting Task',errors:error})
+         resp.status(500).json({status:500,msg:'Error While Deleting Task',errors:error})
+         return;
 
     }
 })
