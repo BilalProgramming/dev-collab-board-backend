@@ -3,7 +3,7 @@ import expressAsyncHandler from "express-async-handler";
 import { validationResult } from "express-validator";
 import { AuthRequest } from "../types/auth.types";
 import { Response } from "express";
-import { createProjectService, getProjectListService } from "../Services/projectService";
+import { createProjectService, getProjectListService, showProjectListService, updateProjectService, deleteProjectService } from "../Services/projectService";
 import mongoose from "mongoose";
 
 const createProject = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
@@ -69,9 +69,14 @@ const getProjectList = expressAsyncHandler(async (req: AuthRequest, resp: Respon
 
 const showProject = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
      try {
-          const id = req.params?.id
+          const id = req.params?.id as string
+          if (!req.user?._id) {
+               resp.status(401).json({ message: "Unauthorized" })
+               return
+          }
           if (id) {
-               const projects = await projectModel.findOne({ _id: id, owner: req.user?._id })
+               const projects = await showProjectListService({ id, owner: req.user._id })
+               // const projects = await projectModel.findOne({ _id: id, owner: req.user?._id })
                // const projects = await projectModel.findById(id).where('owner').equals(req.user?._id)
 
                if (!projects) {
@@ -101,12 +106,18 @@ const showProject = expressAsyncHandler(async (req: AuthRequest, resp: Response)
 
 const updateProject = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
      try {
-          const projectId = req.params.id
-          const updatedProject = await projectModel.findOneAndUpdate(
+          const projectId = req.params.id as string
+          if (!req.user?._id) {
+               resp.status(401).json({ message: "Unauthorized" })
+               return
+          }
+          const updatedProject = await updateProjectService({ projectId, owner: req.user?._id, body: req?.body })
+
+          /* const updatedProject = await projectModel.findOneAndUpdate(
                { _id: projectId, owner: req.user?._id },
                { $set: req?.body },
                { new: true, runValidators: true }
-          )
+          ) */
           if (!updatedProject) {
                resp.status(404).json({ message: "Project not found" });
 
@@ -129,8 +140,13 @@ const deleteProject = expressAsyncHandler(async (req: AuthRequest, resp: Respons
                     msg: "Invalid project ID"
                });
           }
+          if (!req.user?._id) {
+               resp.status(401).json({ message: "Unauthorized" })
+               return
+          }
+          const deletedProject = await deleteProjectService({ id, owner: req.user?._id })
           // const deletedProject=await projectModel.findByIdAndDelete(id)
-          const deletedProject = await projectModel.findOneAndDelete({ _id: id, owner: req.user?._id })
+          // const deletedProject = await projectModel.findOneAndDelete({ _id: id, owner: req.user?._id })
 
 
           if (!deletedProject) {
