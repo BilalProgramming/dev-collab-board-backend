@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs'
 import jwt from "jsonwebtoken";
 import { validationResult } from "express-validator";
 import {Request, Response } from "express";
+import { connectDb } from "../config/db";
 
 const secretKey=process.env.SECRETKEY
 
@@ -17,21 +18,31 @@ const userSignup=expressAsyncHandler(async(req:Request,resp:Response)=>{
           }
  try{
         const {name,email,password}=req?.body
+        
+        
       
         // check if email already exists
-       const alreadyExists=await userModel.findOne({email})
+      //  const alreadyExists=await userModel.findOne({email})
+      const[rows]=await connectDb.execute('SELECT * FROM users WHERE EMAIL=? LIMIT 1',[email])
+    const alreadyExists = rows[0]
        if(alreadyExists){
           resp.status(400).json({message:'Email Already Exists'})
           return
 
        }
        const hashPassword=await bcrypt.hash(password,10)
-       const newUser=new userModel({name,email,password:hashPassword})
-     const data=  await newUser.save()
+       const query=`INSERT INTO users(name,email,password) VALUES(?,?,?)`
+    const [result] =  await connectDb.execute(query,[name,email,hashPassword])
+    const newUser = {
+    id: result.insertId,
+    name,
+    email
+};
+     
     
      
 
-      resp.status(200).json({msg:'user register successfully',data})
+      resp.status(200).json({msg:'user register successfully',data:newUser})
 
     }catch(error){
         console.log('error',error);
@@ -52,7 +63,9 @@ const userLogin=expressAsyncHandler(async(req:Request,resp:Response)=>{
              resp.status(422).json({status:422,message:'Password Field is Required'})
              return
         }
-        const findUser=await userModel.findOne({email})   
+        const[rows]=await connectDb.execute('SELECT id,name,email,password FROM users WHERE EMAIL =?',[email])
+        const findUser=rows[0]
+       
         
         
         if(!findUser){
@@ -66,19 +79,19 @@ const userLogin=expressAsyncHandler(async(req:Request,resp:Response)=>{
                  resp.status(422).json({status:422,message:'Invalid Credentials'})
                  return
             }
-            const user=findUser.toObject() as any
-            delete user.password
-            delete user.__v
+           
             if (!secretKey) {
    throw new Error("JWT secret is not defined!");
 }
 
-           const token=jwt.sign({user},secretKey,{expiresIn:'1d'})
+           const token=jwt.sign({findUser},secretKey,{expiresIn:'1d'})
          
-              resp.status(200).json({status:200,message:'Login successful',data:{token,user}})
+              resp.status(200).json({status:200,message:'Login successful',data:{token,user:findUser}})
 
 
     }catch(error){
+      console.log(error);
+      
       resp.status(500).json({status:500,message:'Server Error',error})
 
     }
@@ -100,8 +113,9 @@ const userLogout=expressAsyncHandler(async(req:Request,resp:Response)=>{
 
         const decoded=jwt.verify(token,secretKey) as { user: { _id: string;name:string; email: string }, exp: number };
        
-        
-        const tokenIsBlackList=await blackListModal.findOne({token})
+       const[rows]=await connectDb.execute('SELECT * FROM blackListtoken where token=?',[token])
+        const tokenIsBlackList=rows[0]
+        // const tokenIsBlackList=await blackListModal.findOne({token})
         if (tokenIsBlackList) {
      resp.status(401).json({
       status: 401,
@@ -110,11 +124,15 @@ const userLogout=expressAsyncHandler(async(req:Request,resp:Response)=>{
     return
   }
 
-       const newData= new blackListModal({token, expiresAt: new Date(decoded.exp * 1000),})
-       await newData.save()
+   const query='INSERT INTO blackListtoken(token,expiresAt) VALUES(?,?)'
+   const expiresAt = new Date(decoded.exp * 1000);
+  await  connectDb.execute(query,[token,expiresAt])
+      
          resp.status(200).json({status:200,message:'Logout Successfullly'})
 
     }catch(error){
+      console.log(error);
+      
            resp.status(400).json({status:400,message:'Unauthenticated.',error})
 
     }
@@ -128,7 +146,9 @@ const currentUserInfo=expressAsyncHandler(async(req:Request,resp:Response)=>{
              resp.status(400).json({status:400,message:'Token is missing'})
              return
         }
-        const tokenIsBlackList=await blackListModal.findOne({token})
+        const [rows]=await connectDb.execute('SELECT * FROM blackListtoken where token=?',[token])
+        const tokenIsBlackList=rows[0]
+        // const tokenIsBlackList=await blackListModal.findOne({token})
           if (tokenIsBlackList) {
      resp.status(401).json({
       status: 401,
@@ -142,7 +162,7 @@ const currentUserInfo=expressAsyncHandler(async(req:Request,resp:Response)=>{
 }
 
         const decoded=jwt.verify(token,secretKey)
-         resp.status(200).json({status:200,message:'authenticated user',data:decoded})
+         resp.status(200).json({status:200,message:'authenticated user',data:decoded?.findUser})
          return
 
 
