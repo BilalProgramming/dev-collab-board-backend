@@ -5,6 +5,7 @@ import { AuthRequest } from "../types/auth.types";
 import { Response } from "express";
 import { createProjectService, getProjectListService, showProjectListService, updateProjectService, deleteProjectService } from "../Services/projectService";
 import mongoose from "mongoose";
+import { connectDb } from "../config/db";
 
 const createProject = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
      const errors = validationResult(req)
@@ -15,10 +16,10 @@ const createProject = expressAsyncHandler(async (req: AuthRequest, resp: Respons
      }
      try {
 
-          const userId = req?.user?._id
+          const userId = req?.user?.id
           if (!userId) {
                throw new Error("User not authenticated");
-               return
+               
           }
 
           const { name, description } = req?.body
@@ -31,6 +32,8 @@ const createProject = expressAsyncHandler(async (req: AuthRequest, resp: Respons
 
 
      } catch (error) {
+          console.log(error);
+          
           resp.status(500).json({ status: false, msg: 'Error while creating project', errors: error })
 
      }
@@ -42,12 +45,15 @@ const getProjectList = expressAsyncHandler(async (req: AuthRequest, resp: Respon
 
      const skip = (current_page - 1) * per_page
      try {
-          const userId = req?.user?._id
+          const userId = Number(req?.user?.id)
           if (!userId) {
                throw new Error("User not authenticated");
 
           }
-          const totalCount = await projectModel.countDocuments({ owner: userId })
+          const [totalCountResult]=await connectDb.execute(`SELECT COUNT(*) AS count FROM projects WHERE owner_id=?`,[userId]) 
+          const totalCount = Number((totalCountResult as any)[0].count); // Total count of projects for the user
+
+          // const totalCount = await projectModel.countDocuments({ owner: userId })
           const totalPages = Math.ceil(totalCount / per_page);  // Total pages
           const lastPage = Math.ceil(totalCount / per_page);
 
@@ -62,6 +68,8 @@ const getProjectList = expressAsyncHandler(async (req: AuthRequest, resp: Respon
 
 
      } catch (error) {
+          console.log('error',error);
+          
           resp.status(500).json({ status: false, message: 'Error While Fetching Projects', errors: error })
 
      }
