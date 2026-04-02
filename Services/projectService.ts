@@ -1,7 +1,8 @@
 
 import projectModel from "../models/project";
 import { connectDb } from "../config/db";
-import { decodeBase64 } from "bcryptjs";
+import { OkPacket } from "mysql2";
+
 
 interface CreateProjectDTO { // Data transfer object
     name: string,
@@ -13,6 +14,7 @@ interface GetProjectListDTO {
     per_page: number,
     skip: number,
     id: number,
+    search:string
 
 }
 interface showProjectListDTO {
@@ -56,35 +58,62 @@ export const getProjectListService = async (data: GetProjectListDTO) => {
     const ownerId = Number(data.id);
     const perPage = Number(data.per_page);
     const skip = Number(data.skip);
+    const search=data.search.trim() || ''
 
+    let query=`SELECT * FROM projects WHERE  owner_id = ?`
+    let params:any[]=[ownerId]
+
+    if(search){
+        query+=` AND ( name LIKE ? OR id = ? OR owner_id = ?)`
+        params.push(`%${search}%`,Number(search), Number(search))
+    }
+    query += ` LIMIT ${perPage} OFFSET ${skip}`;
    
-    const query = `SELECT * FROM projects WHERE owner_id=${ownerId} LIMIT ${perPage} OFFSET ${skip}`;
-    const [findAllProjects] = await connectDb.execute(query);
+    const [projects]=await connectDb.execute(query,params)
 
-    return findAllProjects;
+    return projects
+
+    
 }
 
 export const showProjectListService = async (data: showProjectListDTO) => {
-    const projects = await projectModel.findOne({ _id: data.id, owner: data.owner })
+    let query=`SELECT * FROM projects WHERE owner_id = ?  AND id = ?`
+    let params:any[]=[data.owner, data.id]
+    const [projects]=await connectDb.execute(query,params)
     return projects
+   
 
 
 }
 export const updateProjectService = async (data: updateProjectSericeDTO) => {
-    const updatedProject = await projectModel.findOneAndUpdate(
-        { _id: data.projectId, owner: data.owner },
-        { $set: data.body },
-        { new: true, runValidators: true }
+    let query=`UPDATE projects SET name = ?, description = ? WHERE id = ? AND owner_id = ?`
+    let params:any[]=[data.body.name, data.body.description, data.projectId, data.owner]
+    const [result]=await connectDb.execute(query,params) 
+    const updatedProjects={
+        id: data.projectId,
+        name: data.body.name,
+        description: data.body.description,
+        owner_id: data.owner
+    }   
+    return updatedProjects
 
-    )
-    return updatedProject
 
 }
 
 export const deleteProjectService = async (data: deleteProjectSericeDTO) => {
-    const deletedProject = await projectModel.findOneAndDelete(
-        { _id: data.id, owner: data.owner }
-    )
+    let query=` DELETE FROM projects WHERE id = ? AND owner_id = ?`
+    let params:any[]=[data.id, data.owner]
+    const [result]=await connectDb.execute<OkPacket>(query,params) 
+      if (result.affectedRows === 0) {
+        return null; 
+    }
+
+    
+    const deletedProject={
+        id: data.id,
+        owner_id: data.owner
+    }
     return deletedProject
+ 
 
 }
