@@ -16,20 +16,16 @@ const createTask = expressAsyncHandler(async (req: AuthRequest, resp: Response) 
         return;
     }
     try {
-        const userId = req.user?._id
+        const userId = req.user?.id
         if (!userId) {
             resp.status(401).json({ status: 401, msg: 'user not found' })
             return
         }
         const { title, description, status, projectId } = req?.body
         const newTask = await createTaskService({ projectId, owner: userId, title, description, status, createdBy: userId })
-        /*  const findProject=await projectModel.findOne({_id:projectId,owner:userId})
-         if(!findProject){
-              resp.status(404).json({status:404,msg:'Project not found'})
-              return;
-         } */
-        /* const newTask = new taskModel({ title, description, status, projectId, createdBy: userId })
-        await newTask.save() */
+        console.log(newTask);
+        
+        
 
         resp.status(201).json({ status: 200, msg: 'Task created succesfully', data: newTask })
         return;
@@ -49,26 +45,15 @@ const createTask = expressAsyncHandler(async (req: AuthRequest, resp: Response) 
 })
 const getTaskByProjectId = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
     const id = req?.params.id as string
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        resp.status(400).json({
-            status: 400,
-            msg: "Invalid project ID"
-        });
-        return
-    }
-    if (!req?.user?._id) {
+   
+    if (!req?.user?.id) {
         resp.status(401).json({ status: 401, msg: 'User Not Found' })
         return
     }
 
     try {
-        const result = await getTaskByProjectIdService({ projectId: id, createdBy: req?.user?._id })
-        // const taskByProjectId = await taskModel.find({ projectId: id, createdBy: req?.user?._id }).populate('assignedTo', 'name email')
-        /*  if (taskByProjectId.length === 0) {
-             resp.status(404).json({ status: 404, msg: 'No Tasks found for this project' })
-             return;
-         }
-  */
+        const result = await getTaskByProjectIdService({ projectId: id, createdBy: req?.user?.id })
+       
         resp.status(200).json({ status: 200, msg: 'Tasks fetched successfully', data: result })
         return;
 
@@ -90,14 +75,8 @@ const getTaskByProjectId = expressAsyncHandler(async (req: AuthRequest, resp: Re
 const updateTask = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
 
     const id = req.params?.id as string
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        resp.status(400).json({
-            status: 400,
-            msg: "Invalid project ID"
-        });
-        return;
-    }
-    if (!req.user?._id) {
+   
+    if (!req.user?.id) {
         resp.status(401).json({
             message: "User Not Found",
         });
@@ -109,20 +88,13 @@ const updateTask = expressAsyncHandler(async (req: AuthRequest, resp: Response) 
 
         const { _id, createdAt, updatedAt, ...safeBody } = req.body
 
-        const updatedTask = await updateTaskService({ id, createdBy: req?.user?._id, body: safeBody })
-        /*  const updatedTask = await taskModel.findOneAndUpdate(
-             { _id: id, createdBy: req?.user?._id },
-             { $set: req?.body },
-             { new: true, runValidators: true }
-         ) */
-
-        /* const updatedTask = await taskModel.findByIdAndUpdate(
-            id, { $set: req?.body },
-            { new: true, runValidators: true }) */
-
+        const updatedTask = await updateTaskService({ id, createdBy: req?.user?.id, body: safeBody })
+      
         resp.status(200).json({ status: 200, message: 'Task updated succesfully', data: updatedTask })
         return;
     } catch (error: any) {
+      
+        
         if (error.message === "Task not found") {
             resp.status(404).json({
                 status: 404,
@@ -195,14 +167,8 @@ const updateTaskStatus = expressAsyncHandler(async (req: AuthRequest, resp: Resp
 const assignTaskToUser = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
     const id = req.params?.id as string
     const { assignedTo } = req?.body
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(assignedTo)) {
-        resp.status(400).json({
-            status: 400,
-            msg: "Invalid  ID"
-        });
-        return
-    }
-    if(! req?.user?._id){
+   
+    if(!req?.user?.id){
          resp.status(401).json({
             status: 401,
             msg: "User not exist"
@@ -211,24 +177,8 @@ const assignTaskToUser = expressAsyncHandler(async (req: AuthRequest, resp: Resp
 
     }
     try {
-        const result=await assignTaskToUserService({assignedTo,id, createdBy: req?.user?._id})
-      /*   const findUser = await userModel.findById(assignedTo)
-        if (!findUser) {
-            resp.status(404).json({ status: 404, msg: 'user not found' })
-            return;
-        }
-
-
-        const assignToUser = await taskModel.findOneAndUpdate(
-            { _id: id, createdBy: req?.user?._id },
-            { assignedTo },
-            { new: true }
-        )
-        if (!assignToUser) {
-            resp.status(403).json({ status: 403, msg: 'Forbidden', })
-            return
-
-        } */
+        const result=await assignTaskToUserService({assignedTo,id, createdBy: req?.user?.id})
+      
         resp.status(200).json({ status: 200, msg: 'Task assign succesfully', data: result })
         return;
 
@@ -241,14 +191,8 @@ const assignTaskToUser = expressAsyncHandler(async (req: AuthRequest, resp: Resp
 
 const deleteTask = expressAsyncHandler(async (req: AuthRequest, resp: Response) => {
     const id = req.params?.id as string
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        resp.status(400).json({
-            status: 400,
-            msg: "Invalid project ID"
-        });
-        return
-    }
-    if(!req?.user?._id){
+   
+    if(!req?.user?.id){
          resp.status(401).json({
             status: 401,
             msg: "User Not Found"
@@ -259,16 +203,13 @@ const deleteTask = expressAsyncHandler(async (req: AuthRequest, resp: Response) 
 
     }
     try {
-        const deletedTask=await deleteTaskService({id,createdBy: req?.user?._id})
-       /*  const deletedTask = await taskModel.findOneAndDelete({ _id: id, createdBy: req?.user?._id })
-        if (!deletedTask) {
-            resp.status(404).json({ status: 404, msg: 'Task not found', })
-            return
-        } */
+        const deletedTask=await deleteTaskService({id,createdBy: req?.user?.id})
         resp.status(200).json({ status: 200, msg: 'Task deleted successfully', data: deletedTask })
         return
 
     } catch (error) {
+        console.log(error);
+        
         resp.status(500).json({ status: 500, msg: 'Error While Deleting Task', errors: error })
         return;
 

@@ -19,7 +19,4 @@ export const createTaskValidator = [
     .isIn(["backlog", "todo", "doing", "done"])
     .withMessage("Status must be one of backlog, todo, doing, done"),
 
-  body("projectId")
-    .exists({ checkFalsy: true }).withMessage("Project ID is required")
-    .isMongoId().withMessage("Project ID must be a valid MongoDB ObjectId"),
 ];
