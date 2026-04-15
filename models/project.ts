@@ -5,7 +5,8 @@ export interface IProject {
     owner: mongoose.Types.ObjectId,
     description: string,
     createdAt: Date,
-    updatedAt:Date
+    updatedAt:Date,
+    tenantId: mongoose.Types.ObjectId
 
 }
 
@@ -25,6 +26,11 @@ const projectSchema = new Schema<IProject>({
         trim:true
 
     },
+      tenantId:{
+            type: mongoose.Schema.Types.ObjectId,
+            ref:'Tenant',
+            required:true
+        }
    
 
 },{ timestamps: true }

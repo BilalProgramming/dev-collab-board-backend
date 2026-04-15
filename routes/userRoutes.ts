@@ -9,6 +9,9 @@ router.post('/register', [
     body('name').notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Enter a valid email'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('company')
+  .isLength({ min: 6 })
+  .withMessage('Company name must be at least 6 characters'),
 ], userSignup)
 router.post('/login', userLogin)
 router.post('/logout', userLogout)
