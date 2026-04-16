@@ -41,17 +41,22 @@ const userSignup = expressAsyncHandler(async (req: Request, resp: Response) => {
     const newUser = new userModel({ name, email, password: hashPassword, tenantId })
 
     const data = await newUser.save()
+    const userResponse=data.toObject()
+    delete userResponse.password 
+    
     //update owner in tenant table
     await tenantModel.findOneAndUpdate(
       { _id: tenantId },
       { $set: { ownerId: newUser?._id } }
     )
 
-    resp.status(200).json({ msg: 'user register successfully', data })
+    resp.status(200).json({ msg: 'user register successfully', data:userResponse })
 
   } catch (error) {
     //Rollback if user can't register
+    if(tenantId){
     await tenantModel.findByIdAndDelete(tenantId)
+    }
 
     resp.status(500).json({ status: false, message: 'Servor error', error })
 
@@ -77,15 +82,19 @@ const userLogin = expressAsyncHandler(async (req: Request, resp: Response) => {
       return
 
     }
+    const userId=findUser?._id 
+    const findTenant=await tenantModel.findOne({ownerId:userId})
+    console.log('findTenant',findTenant);
     const storedPassword = findUser?.password
     const isPassword = await bcrypt.compare(password, storedPassword)
     if (!isPassword) {
       resp.status(422).json({ status: 422, message: 'Invalid Credentials' })
       return
     }
-    const user = findUser.toObject() as any
+    let user = findUser.toObject() as any
     delete user.password
     delete user.__v
+    user.tenantId=findTenant?._id
     if (!secretKey) {
       throw new Error("JWT secret is not defined!");
     }

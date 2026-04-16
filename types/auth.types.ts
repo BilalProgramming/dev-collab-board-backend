@@ -5,5 +5,6 @@ export interface AuthRequest extends Request{
         _id:string,
         name:string,
         email:string,
+        tenantId:string
     }
 }

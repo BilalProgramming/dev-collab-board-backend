@@ -16,6 +16,7 @@ const createProject = expressAsyncHandler(async (req: AuthRequest, resp: Respons
      try {
 
           const userId = req?.user?._id
+          const tenantId=req?.user?.tenantId as string
           if (!userId) {
                throw new Error("User not authenticated");
                return
@@ -23,7 +24,7 @@ const createProject = expressAsyncHandler(async (req: AuthRequest, resp: Respons
 
           const { name, description } = req?.body
 
-          const newProject = await createProjectService({ name, description, owner: userId })
+          const newProject = await createProjectService({ name, description, owner: userId ,tenantId})
 
 
           resp.status(200).json({ status: false, msg: 'project created successfully', data: newProject })
@@ -43,15 +44,16 @@ const getProjectList = expressAsyncHandler(async (req: AuthRequest, resp: Respon
      const skip = (current_page - 1) * per_page
      try {
           const userId = req?.user?._id
+          const tenantId=req?.user?.tenantId as string
           if (!userId) {
                throw new Error("User not authenticated");
 
           }
-          const totalCount = await projectModel.countDocuments({ owner: userId })
+          const totalCount = await projectModel.countDocuments({ owner: userId ,tenantId})
           const totalPages = Math.ceil(totalCount / per_page);  // Total pages
           const lastPage = Math.ceil(totalCount / per_page);
 
-          const projects = await getProjectListService({ per_page, skip, id: userId })
+          const projects = await getProjectListService({ per_page, skip, id: userId,tenantId })
 
           resp.status(200).json({
                status: 200, message: 'project list retrived successfully', data: projects, meta: {
@@ -75,7 +77,7 @@ const showProject = expressAsyncHandler(async (req: AuthRequest, resp: Response)
                return
           }
           if (id) {
-               const projects = await showProjectListService({ id, owner: req.user._id })
+               const projects = await showProjectListService({ id, owner: req.user._id ,tenantId:req.user.tenantId})
                // const projects = await projectModel.findOne({ _id: id, owner: req.user?._id })
                // const projects = await projectModel.findById(id).where('owner').equals(req.user?._id)
 
@@ -111,7 +113,7 @@ const updateProject = expressAsyncHandler(async (req: AuthRequest, resp: Respons
                resp.status(401).json({ message: "Unauthorized" })
                return
           }
-          const updatedProject = await updateProjectService({ projectId, owner: req.user?._id, body: req?.body })
+          const updatedProject = await updateProjectService({ projectId, owner: req.user?._id, body: req?.body,tenantId:req.user.tenantId })
 
           /* const updatedProject = await projectModel.findOneAndUpdate(
                { _id: projectId, owner: req.user?._id },
@@ -144,7 +146,7 @@ const deleteProject = expressAsyncHandler(async (req: AuthRequest, resp: Respons
                resp.status(401).json({ message: "Unauthorized" })
                return
           }
-          const deletedProject = await deleteProjectService({ id, owner: req.user?._id })
+          const deletedProject = await deleteProjectService({ id, owner: req.user?._id,tenantId:req.user.tenantId })
           // const deletedProject=await projectModel.findByIdAndDelete(id)
           // const deletedProject = await projectModel.findOneAndDelete({ _id: id, owner: req.user?._id })
 

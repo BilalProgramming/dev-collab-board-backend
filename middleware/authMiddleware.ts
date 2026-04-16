@@ -14,14 +14,22 @@ export const authMiddleware=async(req:AuthRequest,resp:Response,next:NextFunctio
    throw new Error("JWT secret is not defined!");
 }
 
-        const decoded=jwt.verify(token,secretKey) as { user: { _id: string;name:string; email: string } };
+        const decoded=jwt.verify(token,secretKey) as { user: { _id: string;name:string; email: string,tenantId:string } };
           const tokenIsBlackList=await blackListModal.findOne({token})
             if (tokenIsBlackList) {
      resp.status(401).json({
-      status: 401,
+      status: 403,
       message: "unauthorized",
     });
     return
+  }
+  if(!decoded.user.tenantId){
+     resp.status(401).json({
+      status: 403,
+      message: "Forbidden",
+    });
+    return
+
   }
         req.user=decoded.user
         next()

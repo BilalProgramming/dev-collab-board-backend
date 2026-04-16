@@ -2,7 +2,7 @@ import { tenantModel } from "../models/tenant";
 
 interface CreateTenantDTO {
      name:string,
-     ownerId: string
+    
   
 }
 
